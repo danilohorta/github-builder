@@ -922,13 +922,36 @@ jobs:
               core.setOutput('overrides', bakeOverrides.join(os.EOL));
             });
       -
-        name: Set up chainctl
+        # Split setup-chainctl into install-only (identity omitted, so the
+        # action's auth step is skipped) + a retry-wrapped auth step. The
+        # GitHub OIDC token endpoint behind `chainctl auth login`
+        # occasionally returns a non-JSON body under matrix fan-out load
+        # (`invalid character 'u' looking for beginning of value`); 3
+        # attempts with a 10s wait absorb the transient.
+        name: Install chainctl
         if: ${{ inputs.chainguard-identity != '' && inputs.push && inputs.output == 'image' }}
         uses: chainguard-dev/setup-chainctl@2cddd35a2f120d9973e58094dc6878c93cf58c28 # v0.5.1
         with:
-          identity: ${{ inputs.chainguard-identity }}
           apk-host: ${{ inputs.chainguard-apk-host }}
           libraries-host: ${{ inputs.chainguard-libraries-host }}
+      -
+        name: Authenticate chainctl (retry-wrapped)
+        if: ${{ inputs.chainguard-identity != '' && inputs.push && inputs.output == 'image' }}
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+        env:
+          IDENTITY: ${{ inputs.chainguard-identity }}
+          LIBRARIES_HOST: ${{ inputs.chainguard-libraries-host }}
+          APK_HOST: ${{ inputs.chainguard-apk-host }}
+        with:
+          timeout_minutes: 2
+          max_attempts: 3
+          retry_wait_seconds: 10
+          command: |
+            set -e
+            chainctl auth login --identity "$IDENTITY" -v=0
+            chainctl auth login --identity "$IDENTITY" --audience "$LIBRARIES_HOST" -v=0
+            chainctl auth login --identity "$IDENTITY" --audience "$APK_HOST" -v=0
+            chainctl auth configure-docker --identity "$IDENTITY" -v=0
       -
         name: Login to registry
         if: ${{ inputs.push && inputs.output == 'image' }}
@@ -1114,13 +1137,36 @@ jobs:
           annotations: ${{ inputs.meta-annotations }}
           bake-target: ${{ inputs.meta-bake-target }}
       -
-        name: Set up chainctl
+        # Split setup-chainctl into install-only (identity omitted, so the
+        # action's auth step is skipped) + a retry-wrapped auth step. The
+        # GitHub OIDC token endpoint behind `chainctl auth login`
+        # occasionally returns a non-JSON body under matrix fan-out load
+        # (`invalid character 'u' looking for beginning of value`); 3
+        # attempts with a 10s wait absorb the transient.
+        name: Install chainctl
         if: ${{ inputs.chainguard-identity != '' && inputs.push && inputs.output == 'image' }}
         uses: chainguard-dev/setup-chainctl@2cddd35a2f120d9973e58094dc6878c93cf58c28 # v0.5.1
         with:
-          identity: ${{ inputs.chainguard-identity }}
           apk-host: ${{ inputs.chainguard-apk-host }}
           libraries-host: ${{ inputs.chainguard-libraries-host }}
+      -
+        name: Authenticate chainctl (retry-wrapped)
+        if: ${{ inputs.chainguard-identity != '' && inputs.push && inputs.output == 'image' }}
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+        env:
+          IDENTITY: ${{ inputs.chainguard-identity }}
+          LIBRARIES_HOST: ${{ inputs.chainguard-libraries-host }}
+          APK_HOST: ${{ inputs.chainguard-apk-host }}
+        with:
+          timeout_minutes: 2
+          max_attempts: 3
+          retry_wait_seconds: 10
+          command: |
+            set -e
+            chainctl auth login --identity "$IDENTITY" -v=0
+            chainctl auth login --identity "$IDENTITY" --audience "$LIBRARIES_HOST" -v=0
+            chainctl auth login --identity "$IDENTITY" --audience "$APK_HOST" -v=0
+            chainctl auth configure-docker --identity "$IDENTITY" -v=0
       -
         name: Login to registry
         if: ${{ inputs.push && inputs.output == 'image' }}
