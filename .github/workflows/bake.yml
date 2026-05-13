@@ -181,10 +181,6 @@ env:
   MATRIX_SIZE_LIMIT: "20"
   BUILDX_SEND_GIT_QUERY_AS_INPUT: "true"
   NPM_CONFIG_FETCH_RETRIES: "5"
-  # Suppress docker/bake-action's per-build job summary. Callers ship
-  # their own roll-up summary on the workflow run page; the per-build
-  # summaries crowd it out and trip GitHub's "Load summary" collapse.
-  DOCKER_BUILD_SUMMARY: "false"
 
 jobs:
   prepare:
